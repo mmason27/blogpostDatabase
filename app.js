@@ -1,11 +1,22 @@
-//ability to create a post
-//ability to view all posts
+//STEP ONE: ALLOW USERS TO REGISTER
+//BEFORE LUNCH -- SET UP CODE, NOW NEED TO CHECK IF THE LOGIN AND REGISTRATION WORKS
 
 const express = require('express');
 const app = express();
+var session = require('express-session');
+
+//import bycryptjs
+var bcrypt = require('bcryptjs');
 
 //initialize pg promise
-const pgp = require('pg-promise')();
+const pgp = require('pg-promise')()
+
+//initialize a session -- this comes right from the documentation
+app.use(session({
+    secret: 'keyboard cat',
+    resave: false,
+    saveUninitialized: true
+}))
 
 //connection string
 const connectionString = 'postgres://localhost:5432/blogpostsdb';
@@ -27,6 +38,77 @@ app.get('/', (req, res) => {
     })
 })
 
+//get just the user's posts
+// app.get('/my-posts', (req, res) => {
+//     const userId = req.session.userId;
+
+//     db.any('SELECT title, body, date_created, date_updated, is_published FROM blogposts where user_id = $1', [userId])
+//     .then((blogposts) => {
+//         res.json(blogposts)
+//     })
+// })
+
+//allow users to register on website
+app.get('/register', (req, res) => {
+    res.render('register')
+})
+
+app.get('/dashboard', (req, res) => {
+
+    db.any('SELECT users.user_id, username, title, body, date_created, date_updated, is_published FROM users JOIN blogposts ON users.user_id = blogposts.user_id').then(result => {
+        console.log(result)
+    })
+})
+
+app.post('/register', (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+
+    bcrypt.genSalt(10, function (error, salt) {
+        bcrypt.hash(password, salt, function (error, hash) {
+            //if there is no error
+            if (!error) {
+                db.none('INSERT INTO users(username, password) VALUES($1, $2)', [username, hash])
+                .then(() => {
+                    res.send('User Registered!')
+                }).catch(function (e) {
+                    console.log(e)
+                })
+            }
+        })
+    })
+})
+
+//user login
+app.get('/login', (req, res) => {
+    res.render('login');
+})
+
+app.post('/login', (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+
+    db.one('SELECT user_id, username, password FROM users WHERE username = $1', [username])
+        .then((user) => {
+            bcrypt.compare(password, user.password, function (error, result) {
+                if (result) {
+                    if (req.session) {
+                        req.session.userId = user.user_id
+                        req.session.username = user.username
+
+                        res.redirect('/')
+                    }
+                } else {
+                    res.send('Invalid Password')
+                }
+            })
+        }).catch((error) => {
+            console.log(error)
+            res.send('User not found!')
+        })
+})
+
+//sets up the page for adding a post
 app.get('/add-post', (req, res) => {
     res.render('add-post');
 })
@@ -45,8 +127,6 @@ app.post('/add-post', (req, res) => {
         res.redirect('/')
     })
 })
-
-
 
 app.listen(3000, () => {
     console.log("Server is running...");
