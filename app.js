@@ -1,6 +1,3 @@
-//STEP ONE: ALLOW USERS TO REGISTER
-//BEFORE LUNCH -- SET UP CODE, NOW NEED TO CHECK IF THE LOGIN AND REGISTRATION WORKS
-
 const express = require('express');
 const app = express();
 var session = require('express-session');
